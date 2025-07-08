@@ -94,7 +94,21 @@ def merge_pdfs(main_pdf, attachment_paths, output_path):
         writer.write(f)
 
 # Main execution
-df = pd.read_excel('./outbox/updated_exported_data.xlsx', header=1)
+# Read Excel without header to access both header rows
+df_raw = pd.read_excel('./outbox/updated_exported_data.xlsx', header=None)
+
+# Combine row 0 and row 1 to create merged headers
+headers = []
+for col in range(len(df_raw.columns)):
+    row0_val = str(df_raw.iloc[0, col]).strip() if pd.notna(df_raw.iloc[0, col]) else ''
+    row1_val = str(df_raw.iloc[1, col]).strip() if pd.notna(df_raw.iloc[1, col]) else ''
+    combined = f"{row0_val} {row1_val}".strip()
+    headers.append(combined)
+
+# Create dataframe with merged headers and data from row 2 onwards
+df = pd.DataFrame(df_raw.iloc[2:].values, columns=headers)
+df.reset_index(drop=True, inplace=True)
+
 os.makedirs('outbox/pdfs', exist_ok=True)
 
 for idx, row in df.iterrows():
@@ -102,8 +116,11 @@ for idx, row in df.iterrows():
     temp_pdf = f'outbox/temp_row_{idx}.pdf'
     create_row_pdf(row.to_dict(), temp_pdf)
     
-    # Get matched files
-    matched_files = str(row.get('Matched Files', '')).split('| ') if row.get('Matched Files') else []
+    # Get matched files from column CJ (index 87)
+    # Get the index of the 'Matched Files' column dynamically
+    matched_files_col_idx = df.columns.get_loc('Matched Files')
+    matched_files_col = row.iloc[matched_files_col_idx] if len(row) > matched_files_col_idx else ''   
+    matched_files = str(matched_files_col).split('| ') if pd.notna(matched_files_col) and matched_files_col else []    
     matched_files = [f.strip() for f in matched_files if f.strip()]
     
     # Get person's name from row 2, column R for filename
@@ -112,13 +129,14 @@ for idx, row in df.iterrows():
     safe_name = ''.join(c for c in person_name if c.isalnum() or c in (' ', '-', '_')).strip()
     final_pdf = f'outbox/pdfs/{safe_name}.pdf'
     
+    print(f"Processing {safe_name}: {len(matched_files)} matched files")
     if matched_files:
+        print(f"  Matched files: {matched_files}")
         merge_pdfs(temp_pdf, matched_files, final_pdf)
+        # Clean up temp file after merge
+        if os.path.exists(temp_pdf):
+            os.remove(temp_pdf)
     else:
         os.rename(temp_pdf, final_pdf)
-    
-    # Clean up temp file
-    if os.path.exists(temp_pdf):
-        os.remove(temp_pdf)
 
 print("✅ PDFs created in outbox/pdfs/")
