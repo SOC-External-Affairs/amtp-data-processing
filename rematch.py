@@ -1,10 +1,11 @@
 import os
 import pandas as pd
+from settings import INPUT_FILE, OUTPUT_FILE, SEARCH_ROOT
 
 # === CONFIGURATION ===
-input_file = './inbox/data.xlsx'                     # Path to input Excel file containing response IDs
-output_file = 'updated_exported_data.xlsx'           # Path to output Excel file that will contain matches
-search_root = './inbox/'                             # Root directory to recursively search for matching files
+input_file = INPUT_FILE                              # Path to input Excel file containing response IDs
+output_file = OUTPUT_FILE                            # Path to output Excel file that will contain matches
+search_root = SEARCH_ROOT                            # Root directory to recursively search for matching files
 
 # === LOAD EXCEL FILE ===
 try:
