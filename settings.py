@@ -5,7 +5,7 @@ EXCLUDED_KEYWORDS = [
     'StartDate', 'EndDate', 'Status', 'IPAddress', 'Duration (in seconds)',
     'Finished', 'RecordedDate', 'RecipientLastName', 'RecipientFirstName',
     'RecipientEmail', 'ExternalReference', 'LocationLatitude', 'LocationLongitude',
-    'DistributionChannel', 'Matched Files'
+    'DistributionChannel', 
 ]
 
 # File Processing Settings
