@@ -7,6 +7,7 @@ from reportlab.lib import colors
 from PyPDF2 import PdfReader, PdfWriter
 import io
 import re
+from settings import EXCLUDED_KEYWORDS
 
 def create_row_pdf(row_data, output_path):
     """
@@ -32,16 +33,29 @@ def create_row_pdf(row_data, output_path):
     story = []
     styles = getSampleStyleSheet()
     
+    # Load excluded keywords from settings
+    excluded_keywords = EXCLUDED_KEYWORDS
+    
     # Process data in chunks to avoid layout errors
-    filtered_data = {k: v for k, v in row_data.items() if k != 'Matched Files'}
+    filtered_data = {}
+    for k, v in row_data.items():
+        # Check if any excluded keyword is in the header
+        if not any(keyword in k for keyword in excluded_keywords):
+            filtered_data[k] = v
     
     for key, value in filtered_data.items():
+        # Skip if value is empty or only whitespace
+        value_str = str(value) if pd.notna(value) else ''
+        if not value_str.strip():
+            continue
+            
         # Create key paragraph
         key_para = Paragraph(f"<b>{str(key)}:</b>", styles['Normal'])
         story.append(key_para)
         
         # Create value paragraph with wrapping and clickable URLs/files
-        value_str = str(value) if pd.notna(value) else ''
+        # Preserve line breaks by converting to HTML br tags
+        value_str = value_str.replace('\n', '<br/>')
         # Make URLs clickable and blue
         url_pattern = r'(https?://[^\s]+)'
         value_str = re.sub(url_pattern, r'<link href="\1" color="blue">\1</link>', value_str)
@@ -116,17 +130,28 @@ for idx, row in df.iterrows():
     temp_pdf = f'outbox/temp_row_{idx}.pdf'
     create_row_pdf(row.to_dict(), temp_pdf)
     
-    # Get matched files from column CJ (index 87)
-    # Get the index of the 'Matched Files' column dynamically
-    matched_files_col_idx = df.columns.get_loc('Matched Files')
-    matched_files_col = row.iloc[matched_files_col_idx] if len(row) > matched_files_col_idx else ''   
-    matched_files = str(matched_files_col).split('| ') if pd.notna(matched_files_col) and matched_files_col else []    
+    # Get matched files from 'Matched Files' column if it exists
+    if 'Matched Files' in df.columns:
+        matched_files_col_idx = df.columns.get_loc('Matched Files')
+        matched_files_col = row.iloc[matched_files_col_idx] if len(row) > matched_files_col_idx else ''
+        matched_files = str(matched_files_col).split('| ') if pd.notna(matched_files_col) and matched_files_col else []
+    else:
+        matched_files = []    
     matched_files = [f.strip() for f in matched_files if f.strip()]
     
-    # Get person's name from row 2, column R for filename
+    # Get person's name from column R and show name from column Z
     person_name = str(row.iloc[17] if len(row) > 17 else f'row_{idx+1}').strip()
+    show_name = str(row.iloc[25] if len(row) > 25 else '').strip()  # Column Z is index 25
+    
+    # Create filename with show name and person name
+    if show_name:
+        filename_parts = [show_name, person_name]
+    else:
+        filename_parts = [person_name]
+    
     # Sanitize filename by removing invalid characters
-    safe_name = ''.join(c for c in person_name if c.isalnum() or c in (' ', '-', '_')).strip()
+    safe_name = ' - '.join(filename_parts)
+    safe_name = ''.join(c for c in safe_name if c.isalnum() or c in (' ', '-', '_')).strip()
     final_pdf = f'outbox/pdfs/{safe_name}.pdf'
     
     print(f"Processing {safe_name}: {len(matched_files)} matched files")
