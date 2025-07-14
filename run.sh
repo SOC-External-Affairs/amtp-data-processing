@@ -24,5 +24,6 @@ fi
 pip install -q -r requirements.txt
 
 # Run the scripts
+python process_downloads.py
 python rematch.py
 python create_pdf.py

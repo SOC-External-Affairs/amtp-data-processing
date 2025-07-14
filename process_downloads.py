@@ -4,6 +4,7 @@ import shutil
 import glob
 from datetime import datetime, timedelta
 from pathlib import Path
+from settings import DOWNLOADS_INBOX_PATH, DOWNLOADS_INBOX_DATA_PATH, DOWNLOADS_TIME_WINDOW_HOURS, DOWNLOADS_FILE_PATTERN, DOWNLOADS_TARGET_XLSX
 
 def process_amtp_downloads():
     """
@@ -17,8 +18,8 @@ def process_amtp_downloads():
     """
     
     downloads_path = Path.home() / "Downloads"
-    inbox_path = Path("./inbox")
-    inbox_data_path = inbox_path / "data"
+    inbox_path = Path(DOWNLOADS_INBOX_PATH)
+    inbox_data_path = Path(DOWNLOADS_INBOX_DATA_PATH)
     
     # Create directories if they don't exist
     inbox_path.mkdir(exist_ok=True)
@@ -29,15 +30,15 @@ def process_amtp_downloads():
     print(f"\n=== DEBUG: Scanning Downloads Directory ===")
     print(f"[INFO] Found {len(all_zips)} total zip files")
     print("=== First 5 zip files ===")
-    for zip_file in all_zips[:5]:  # Show first 5
+    for zip_file in all_zips: 
         print(f"[FILE] {zip_file.name}")
     print("===============================\n")    
-    # Find AMTP zip files from last 2 hours
-    cutoff_time = datetime.now() - timedelta(hours=2)
+    # Find AMTP zip files from configured time window
+    cutoff_time = datetime.now() - timedelta(hours=DOWNLOADS_TIME_WINDOW_HOURS)
     amtp_zips = []
     
-    # Look for files containing "AMTP" anywhere in name
-    for zip_file in downloads_path.glob("*AMTP*.zip"):
+    # Look for files matching pattern
+    for zip_file in downloads_path.glob(DOWNLOADS_FILE_PATTERN):
         file_time = datetime.fromtimestamp(zip_file.stat().st_mtime)
         print(f"📅 {zip_file.name}: {file_time} (cutoff: {cutoff_time})")
         if file_time > cutoff_time:
@@ -51,18 +52,26 @@ def process_amtp_downloads():
         print(f"💡 Try extending time window or check file names contain 'AMTP'")
         return
     
-    # Sort by creation time, get most recent
+    # Sort by creation time, process all recent files
     amtp_zips.sort(key=lambda x: x[1], reverse=True)
-    most_recent_zip = amtp_zips[0][0]
     
-    print(f"📦 Processing: {most_recent_zip.name}")
+    print(f"📦 Processing {len(amtp_zips)} AMTP zip files...")
     
-    # Extract zip file
-    temp_extract_path = inbox_path / "temp_extract"
+    # Process each zip file
+    for zip_file, file_time in amtp_zips:
+        print(f"\n📦 Processing: {zip_file.name}")
+        process_single_zip(zip_file, inbox_path, inbox_data_path)
+
+def process_single_zip(zip_file, inbox_path, inbox_data_path):
+    
+    """
+    Process a single zip file - extract and organize contents.
+    """
+    temp_extract_path = inbox_path / f"temp_extract_{zip_file.stem}"
     temp_extract_path.mkdir(exist_ok=True)
     
     try:
-        with zipfile.ZipFile(most_recent_zip, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_file, 'r') as zip_ref:
             zip_ref.extractall(temp_extract_path)
         
         print(f"📂 Extracted to temporary folder")
@@ -73,11 +82,11 @@ def process_amtp_downloads():
         for item in extracted_files[:10]:  # Show first 10
             print(f"  - {item.relative_to(temp_extract_path)} ({'file' if item.is_file() else 'dir'})")
         
-        # Find and move XLSX file
+        # Find and move XLSX file (if any)
         xlsx_files = list(temp_extract_path.rglob("*.xlsx"))
         if xlsx_files:
             xlsx_file = xlsx_files[0]  # Take first XLSX found
-            target_xlsx = inbox_path / "data.xlsx"
+            target_xlsx = inbox_path / DOWNLOADS_TARGET_XLSX
             
             # Remove existing data.xlsx if it exists
             if target_xlsx.exists():
@@ -85,10 +94,8 @@ def process_amtp_downloads():
             
             shutil.move(str(xlsx_file), str(target_xlsx))
             print(f"📊 Moved XLSX to: {target_xlsx}")
-        else:
-            print("⚠️ No XLSX file found in zip")
         
-        # Move all other files to ./inbox/data/
+        # Move all other files (including non-XLSX files) to ./inbox/data/
         moved_count = 0
         for item in temp_extract_path.rglob("*"):
             if item.is_file() and item.suffix.lower() != ".xlsx":
@@ -112,7 +119,7 @@ def process_amtp_downloads():
         print("🧹 Cleaned up temporary files")
         
     except zipfile.BadZipFile:
-        print(f"❌ Error: {most_recent_zip.name} is not a valid zip file")
+        print(f"❌ Error: {zip_file.name} is not a valid zip file")
     except Exception as e:
         print(f"❌ Error processing zip file: {e}")
         # Clean up temp directory on error
