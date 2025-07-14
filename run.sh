@@ -23,7 +23,13 @@ fi
 # Install requirements if not already installed
 pip install -q -r requirements.txt
 
-# Run the scripts
+
+
+# move and extract zip files from downloads folder
 python process_downloads.py
+
+# pair up the responses with uploaded PDF files that much
 python rematch.py
+
+# Generate final PDF report from the processed data
 python create_pdf.py
