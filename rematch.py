@@ -1,30 +1,30 @@
 import os
 import pandas as pd
-from settings import INPUT_FILE, OUTPUT_FILE, SEARCH_ROOT
+from settings import REMATCH_INPUT_FILE, REMATCH_OUTPUT_FILE, REMATCH_SEARCH_ROOT, REMATCH_OUTPUT_DIR, REMATCH_EXCEL_ENGINE, REMATCH_MATCHED_FILES_COLUMN, REMATCH_FILE_SEPARATOR, REMATCH_RESPONSE_ID_KEYWORDS
 
 # === CONFIGURATION ===
-input_file = INPUT_FILE                              # Path to input Excel file containing response IDs
-output_file = OUTPUT_FILE                            # Path to output Excel file that will contain matches
-search_root = SEARCH_ROOT                            # Root directory to recursively search for matching files
+input_file = REMATCH_INPUT_FILE                      # Path to input Excel file containing response IDs
+output_file = REMATCH_OUTPUT_FILE                    # Path to output Excel file that will contain matches
+search_root = REMATCH_SEARCH_ROOT                    # Root directory to recursively search for matching files
 
 # === LOAD EXCEL FILE ===
 try:
-    # Attempt to load Excel file using openpyxl engine
-    df = pd.read_excel(input_file, engine='openpyxl')
+    # Attempt to load Excel file using configured engine
+    df = pd.read_excel(input_file, engine=REMATCH_EXCEL_ENGINE)
 except FileNotFoundError:
     raise FileNotFoundError(f"Could not find the input file at path: {input_file}")
 
 # === CHECK FOR RESPONSE ID COLUMN === 
-# Searches for column containing 'response' or 'id' in name (case-insensitive)
+# Searches for column containing configured keywords in name (case-insensitive)
 response_id_col = None
 for col in df.columns:
-    if 'response' in col.lower() or 'id' in col.lower():
+    if any(keyword in col.lower() for keyword in REMATCH_RESPONSE_ID_KEYWORDS):
         response_id_col = col
         break
 
 if not response_id_col:
     print("Available columns:", list(df.columns))
-    raise ValueError("No column containing 'response' or 'id' was found in the Excel file")
+    raise ValueError(f"No column containing {REMATCH_RESPONSE_ID_KEYWORDS} was found in the Excel file")
 
 # === FUNCTION TO FIND MATCHING FILES ===
 def find_matching_files(response_id, root_dir):
@@ -47,13 +47,13 @@ def find_matching_files(response_id, root_dir):
     return matches
 
 # === APPLY TO EACH ROW ===
-# Create new column with pipe-separated list of matching file paths
-df['Matched Files'] = df[response_id_col].apply(
-    lambda rid: '| '.join(find_matching_files(rid, search_root))
+# Create new column with separator-delimited list of matching file paths
+df[REMATCH_MATCHED_FILES_COLUMN] = df[response_id_col].apply(
+    lambda rid: REMATCH_FILE_SEPARATOR.join(find_matching_files(rid, search_root))
 )
 
 # === SAVE UPDATED FILE ===
-# Create outbox directory if it doesn't exist and save Excel file
-os.makedirs('outbox', exist_ok=True)
-df.to_excel(f'outbox/{output_file}', index=False, engine='openpyxl')
+# Create output directory if it doesn't exist and save Excel file
+os.makedirs(REMATCH_OUTPUT_DIR, exist_ok=True)
+df.to_excel(f'{REMATCH_OUTPUT_DIR}/{output_file}', index=False, engine=REMATCH_EXCEL_ENGINE)
 print(f"✅ Updated file saved as: {output_file}")

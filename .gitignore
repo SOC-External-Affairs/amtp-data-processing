@@ -17,3 +17,4 @@ ENV/
 *.pdf
 *.xlsx
 .DS*
+settings.py

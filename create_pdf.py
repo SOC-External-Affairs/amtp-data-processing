@@ -7,7 +7,7 @@ from reportlab.lib import colors
 from PyPDF2 import PdfReader, PdfWriter
 import io
 import re
-from settings import EXCLUDED_KEYWORDS
+from settings import PDF_EXCLUDED_KEYWORDS
 
 def create_row_pdf(row_data, output_path):
     """
@@ -37,7 +37,7 @@ def create_row_pdf(row_data, output_path):
     styles = getSampleStyleSheet()
     
     # Load excluded keywords from settings
-    excluded_keywords = EXCLUDED_KEYWORDS
+    excluded_keywords = PDF_EXCLUDED_KEYWORDS
     
     # Process data in chunks to avoid layout errors
     filtered_data = {}
