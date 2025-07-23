@@ -29,7 +29,6 @@ def process_amtp_downloads():
     all_zips = list(downloads_path.glob("*.zip"))
     print(f"\n=== DEBUG: Scanning Downloads Directory ===")
     print(f"[INFO] Found {len(all_zips)} total zip files")
-    print("=== First 5 zip files ===")
     for zip_file in all_zips: 
         print(f"[FILE] {zip_file.name}")
     print("===============================\n")    
